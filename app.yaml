@@ -1,0 +1,13 @@
+application: webrtc_demo
+version: 1
+runtime: python27
+api_version: 1
+threadsafe: true
+
+# order is important!
+handlers:
+- url: /static
+  static_dir: static
+  
+- url: /.*
+  script: main.app
