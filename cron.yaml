@@ -1,0 +1,4 @@
+cron:
+- description: periodic timeout check
+  url: /timeout
+  schedule: every 1 minutes
