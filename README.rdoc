@@ -10,3 +10,4 @@ It works in Google App Engine, or with the GAE SDK in localhost. Just clone it a
 
      dev_appserver.py $PATH_TO_WEBRTC
 
+To upload it to GAE change the app name in app.yaml.
