@@ -6,7 +6,7 @@ This demo will not be modified, but it can be a good starting point to anyone wh
 
 == Installation
 
-It works in Google App Engine, or with the GAE SDK in localhost. Just run:
+It works in Google App Engine, or with the GAE SDK in localhost. Just clone it and run:
 
-     dev_appserver.py
+     dev_appserver.py $PATH_TO_WEBRTC
 
