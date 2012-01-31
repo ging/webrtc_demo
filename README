@@ -1,0 +1,10 @@
+= WebRTC Demo.
+
+This demo is based on {WebRTC}[wwww.webrtc.org]. It provides similar client and server, with minor changes due to different asynchronous HTTP calls made in the webrtc client. 
+
+This demo will not be modified, but it can be a good starting point to anyone who wants to test webrtc features.
+
+== Installation
+
+It works in Google App Engine, or with the GAE SDK in localhost.
+
