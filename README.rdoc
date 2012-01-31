@@ -6,5 +6,7 @@ This demo will not be modified, but it can be a good starting point to anyone wh
 
 == Installation
 
-It works in Google App Engine, or with the GAE SDK in localhost.
+It works in Google App Engine, or with the GAE SDK in localhost. Just run:
+
+     dev_appserver.py
 
