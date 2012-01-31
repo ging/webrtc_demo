@@ -63,11 +63,12 @@ class IndexHandler(BaseHandler):
         Home page handler
     """
     def get(self):
-        self.response.headers['Access-Control-Allow-Origin'] = '*'
         return self.render_template('index.html')
 
 class SignInHandler(BaseHandler):
-    
+    """
+        Sign-in handler
+    """
     def get(self):
     
         """
@@ -85,11 +86,12 @@ class SignInHandler(BaseHandler):
         for user in users:
             if user.peer_id != new_user.peer_id:
                 self.create_message(user.peer_id, user.peer_id, new_user.name + ',' + str(new_user.peer_id) + ',1')
-        self.response.headers['Access-Control-Allow-Origin'] = '*'
         return self.response.write(user_str)
         
 class SignOutHandler(BaseHandler):
-
+    """
+        Sign-out handler
+    """
     def get(self):
 
         peer_id = self.request.get('peer_id')
@@ -98,7 +100,10 @@ class SignOutHandler(BaseHandler):
             self.delete_user(peer_id)
 
 class WaitHandler(BaseHandler):
-
+    """
+        Wait handler
+    """
+    
     def get(self):
     
         peer_id = self.request.get('peer_id')
@@ -112,20 +117,24 @@ class WaitHandler(BaseHandler):
         else:
             self.response.set_status(304, "No need to do anything")
         self.get_user(peer_id).put()
-        self.response.headers['Access-Control-Allow-Origin'] = '*'
         self.response.headers.add_header("Pragma", str(pragma_id))
         
 class MessageHandler(BaseHandler):
-
+    """
+        Message handler
+    """
+    
     def post(self):
         peer_id = int(self.request.get('peer_id'))
         to_id = int(self.request.get('to'))
         msg = self.request.body
         self.create_message(peer_id, to_id, msg)
-        self.response.headers['Access-Control-Allow-Origin'] = '*'
         
 class TimeoutHandler(BaseHandler):
-
+    """
+        Timeout handler. To be called by cron tasks
+    """
+    
     def get(self):
         for old_user in User.all():
             if old_user:
