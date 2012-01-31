@@ -63,7 +63,7 @@ class IndexHandler(BaseHandler):
         Home page handler
     """
     def get(self):
-       
+        self.response.headers['Access-Control-Allow-Origin'] = '*'
         return self.render_template('index.html')
 
 class SignInHandler(BaseHandler):
@@ -85,7 +85,7 @@ class SignInHandler(BaseHandler):
         for user in users:
             if user.peer_id != new_user.peer_id:
                 self.create_message(user.peer_id, user.peer_id, new_user.name + ',' + str(new_user.peer_id) + ',1')
-        
+        self.response.headers['Access-Control-Allow-Origin'] = '*'
         return self.response.write(user_str)
         
 class SignOutHandler(BaseHandler):
@@ -95,7 +95,7 @@ class SignOutHandler(BaseHandler):
         peer_id = self.request.get('peer_id')
         if peer_id:
             print
-            #self.delete_user(peer_id)
+            self.delete_user(peer_id)
 
 class WaitHandler(BaseHandler):
 
@@ -112,6 +112,7 @@ class WaitHandler(BaseHandler):
         else:
             self.response.set_status(304, "No need to do anything")
         self.get_user(peer_id).put()
+        self.response.headers['Access-Control-Allow-Origin'] = '*'
         self.response.headers.add_header("Pragma", str(pragma_id))
         
 class MessageHandler(BaseHandler):
@@ -121,6 +122,7 @@ class MessageHandler(BaseHandler):
         to_id = int(self.request.get('to'))
         msg = self.request.body
         self.create_message(peer_id, to_id, msg)
+        self.response.headers['Access-Control-Allow-Origin'] = '*'
         
 class TimeoutHandler(BaseHandler):
 
