@@ -1,59 +1,157 @@
+
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
 
+<!--
+Copyright (c) 2011-2012 The WebRTC project authors. All Rights Reserved.
+
+Use of this source code is governed by a BSD-style license
+that can be found in the LICENSE file in the root of the source
+tree. An additional intellectual property rights grant can be found
+in the file PATENTS. All contributing project authors may
+be found in the AUTHORS file in the root of the source tree.
+-->
+
 <html>
+
 <head>
-<title>Answerer</title>
+<title>WebRTC Answerer</title>
+
+<style type="text/css">
+body, input, button, select, table {
+  font-family:"Lucida Grande", "Lucida Sans", Verdana, Arial, sans-serif;
+  font-size: 13 px;
+}
+body, input:enable, button:enable, select:enable, table {
+  color: rgb(51, 51, 51);
+}
+h1 {font-size: 40 px;}
+</style>
 
 <script type="text/javascript">
 
+// TODO: Catch more exceptions
+
+var server;
+var myId = -1;
+var myName;
+var remoteId = -1;
+var remoteName;
+var request = null;
+var hangingGet = null;
 var pc = null;
 var localStream = null;
+var disconnecting = false;
+var callState = 0; // 0 - Not started, 1 - Call ongoing
+var offeredSDP;
+var sdp1;
+var sdp2;
+
+
 
 // General
+
+function setElementValuesFromURL() {
+  window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi,
+    function(m, key, value) {
+      document.getElementById(key).value = unescape(value);
+    });
+}
 
 function trace(txt) {
   var elem = document.getElementById("debug");
   elem.innerHTML += txt + "<br>";
 }
 
+function trace_warning(txt) {
+  var wtxt = "<b>" + txt + "</b>";
+  trace(wtxt);
+}
+
+function trace_exception(e, txt) {
+  var etxt = "<b>" + txt + "</b> (" + e.name + " / " + e.message + ")";
+  trace(etxt);
+}
+
+function checkPeerConnection() {
+  if (!pc) {
+    trace_warning("No PeerConnection object exists");
+    return 0;
+  }
+  return 1;
+}
+
+
 // Local stream generation
 
-function gotStream(stream) {
-  var url = webkitURL.createObjectURL(stream);
+function gotStream(s) {
+  var url = webkitURL.createObjectURL(s);
   document.getElementById("localView").src = url;
   trace("User has granted access to local media. url = " + url);
-  localStream = stream;
+  localStream = s;
 }
 
 function gotStreamFailed(error) {
-  alert("Failed to get access to local media. Error code was " + error.code);
+  alert("Failed to get access to local media. Error code was " + error.code +
+    ".");
+  trace_warning("Failed to get access to local media. Error code was " +
+    error.code);
 }
 
 function getUserMedia() {
-  navigator.webkitGetUserMedia("video,audio", gotStream, gotStreamFailed);
+  try {
+    navigator.webkitGetUserMedia("video,audio", gotStream, gotStreamFailed);
+    trace("Requested access to local media");
+  } catch (e) {
+    trace_exception(e, "getUserMedia error");
+  }
 }
 
 // Call control
 
 function createPeerConnection() {
-  pc = new webkitPeerConnection("STUN stun.l.google.com:19302",
+  if (pc) {
+    trace_warning("PeerConnection object already exists");
+  }
+  trace("Creating PeerConnection object");
+  try {
+    pc = new webkitDeprecatedPeerConnection("STUN stun.l.google.com:19302",
       onSignalingMessage);
   pc.onaddstream = onAddStream;
   pc.onremovestream = onRemoveStream;
-  pc.addStream(localStream);
+  } catch (e) {
+    trace_exception(e, "Create PeerConnection error");
+  }
 }
 
-function onCall(sdp) {
+function doCall() {
+//  document.getElementById("call").disabled = true;
+//  document.getElementById("peers").disabled = true;
   createPeerConnection();
-  pc.processSignalingMessage(sdp);
+  trace("Adding stream");
+  pc.addStream(localStream);
+  document.getElementById("hangup").disabled = false;
+}
+
+function hangUp() {
+  document.getElementById("hangup").disabled = true;
+  trace("Sending BYE to " + remoteName + " (ID " + remoteId + ")");
+  closeCall();
 }
 
 function closeCall() {
   trace("Stopping showing remote stream");
-  document.getElementById("remoteView").src = "";
-  pc.close();
-  pc = null;
+  document.getElementById("remoteView").src = "dummy";
+  if (pc) {
+    trace("Stopping call [pc.close()]");
+    pc.close();
+    pc = null;
+  } else
+    trace("No pc object to close");
+  remoteId = -1;
+  document.getElementById("call").disabled = false;
+  document.getElementById("peers").disabled = false;
 }
+
 
 // PeerConnection callbacks
 
@@ -65,33 +163,79 @@ function onAddStream(e) {
 }
 
 function onRemoveStream(e) {
+  // Currently if we get this callback, call has ended.
   document.getElementById("remoteView").src = "";
   trace("Stopped showing remote stream");
 }
 
-function onSignalingMessage(sdp) {
-  trace(sdp);
+function onSignalingMessage(msg) {
+  trace(msg);
+  sdp1 = msg;
+  var sdpJSON = {};
+  sdpJSON.algo = msg;
+  trace(JSON.stringify(sdpJSON));
+  msg = msg.replace("SDP", "")
+  var elem = document.getElementById("sdp");
+  var myObject = JSON.parse(msg);
+  offeredSDP = myObject;
+  elem.innerHTML += myObject.sdp + "<br>";
 }
 
-function receiveSignallingMessage(sdp) {
-	pc.processSignalingMessage(sdp);
-}
-
-// Additional Functions
-
-function onRemoteSDP() {
+function onOffererSDP() {
 	sdp = document.getElementById("remoteSDP").value;
-	document.getElementById("remoteSDP").value = "";
-	if (pc == null) {
-		onCall(sdp);
-	} else {
-		receiveSignallingMessage(sdp);
-	}
+	sdp = sdp.replace(new RegExp("\\n","g"),"\r\n");
+//	sdp = sdp.replace(new RegExp("{","g"),"#");
+//	sdp = sdp.replace(new RegExp("}","g"),"&");
+	var sdpJSON = {};
+	sdpJSON.messageType = "OFFER";
+	sdpJSON.offererSessionId = "wE60mmTzLLhQeMsDMzmF0xOqtPVwKn/Y";
+	sdpJSON.sdp = sdp;
+	sdpJSON.seq = 1;
+	sdpJSON.tieBreaker = 4098692253;
+	msg = "SDP" + JSON.stringify(sdpJSON);
+
+	msg = msg.replace(new RegExp( "SDP{", "g" ),"SDP\n{\n   ");
+	msg = msg.replace(new RegExp( ",", "g" ),",\n   ");
+	msg = msg.replace(new RegExp( "}$", "g" ),"\n}\n");
+	msg = msg.replace(new RegExp( "\":", "g" ),"\" : ");
+	var test = {}
+	test.offer = msg;
+	trace(JSON.stringify(test));
+	sdp2=msg;
+	createPeerConnection();
+    try {
+      pc.processSignalingMessage(msg);
+    } catch (e) {
+      trace(e, "Process signaling message error");
+    }
+    trace("Adding stream");
+    pc.addStream(localStream);
 }
+
+function onOK() {
+	var sdpJSON = {};
+	sdpJON = {};
+	sdpJSON.answererSessionId = "wE60mmTzLLhQeMsDMzmF0xOqtPVwKn/Y";
+	sdpJSON.messageType = "OK";
+	sdpJSON.offererSessionId = offeredSDP.answererSessionId;
+	sdpJSON.seq = 1;
+	msg = "SDP" + JSON.stringify(sdpJSON);
+	msg = msg.replace(/\n/gi,"\\r\\n");
+	msg = msg.replace(new RegExp( "SDP{", "g" ),"SDP\n{\n   ");
+	msg = msg.replace(new RegExp( ",", "g" ),",\n   ");
+	msg = msg.replace(new RegExp( "}$", "g" ),"\n}\n");
+	msg = msg.replace(new RegExp( "\":", "g" ),"\" : ");
+
+	sdp2=msg;
+	trace(msg);
+	pc.processSignalingMessage(msg);
+}
+
 
 // Window event handling
 
 window.onload = function() {
+  setElementValuesFromURL();
   getUserMedia();
 }
 
@@ -99,7 +243,9 @@ window.onload = function() {
 </head>
 
 <body>
-<h1>Answerer</h1>
+<h1>WebRTC Answerer</h1>
+You must have a WebRTC capable browser in order to make calls using this test
+page.<br>&nbsp;
 
 <table border="0">
 <tr>
@@ -108,16 +254,40 @@ window.onload = function() {
 </tr>
 <tr>
  <td>
-  <video width="160" height="120" id="localView" autoplay="autoplay"></video>
+  <video width="40" height="30" id="localView" autoplay="autoplay"></video>
  </td>
  <td>
-  <video width="160" height="120" id="remoteView" autoplay="autoplay"></video>
+  <video width="80" height="60" id="remoteView" autoplay="autoplay"></video>
  </td>
 </tr>
 </table>
-<br>
-<textarea id="remoteSDP" rows="10" cols="70" wrap="on"></textarea><br>
-<button onclick="onRemoteSDP();">Receive SDP</button><br>
+
+<table border="1">
+			<tr>
+				<td>Sender Info</td>
+				<td>Answerer Info</td>
+			</tr>
+			<tr>
+				<td>
+					<textarea id="remoteSDP" rows="10" cols="70" wrap="on"></textarea>
+				</td>
+				<td>
+					<div style="height:120px;width:500px;overflow:scroll;"><pre id="sdp"></pre></div>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<button id="createPeerConnection" onclick="onOffererSDP();">Receive SDP</button>
+				</td>
+				<td>
+					<!--<input id="offererSessionId"/>-->
+					<button id="createPeerConnection" onclick="onOK();">OK</button>
+				</td>
+			</tr>
+</table>
+
+<button onclick="document.getElementById('debug').innerHTML='';">Clear log
+</button>
 <pre id="debug"></pre>
 
 </body>

@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+
+<html>
+<head>
+<title>El que llama</title>
+
+<script type="text/javascript">
+
+var pc = null;
+var localStream = null;
+
+// General
+
+function trace(txt) {
+  var elem = document.getElementById("debug");
+  elem.innerHTML += txt + "<br>";
+}
+
+// Local stream generation
+
+function gotStream(stream) {
+  var url = webkitURL.createObjectURL(stream);
+  document.getElementById("localView").src = url;
+  trace("User has granted access to local media. url = " + url);
+  localStream = stream;
+}
+
+function gotStreamFailed(error) {
+  alert("Failed to get access to local media. Error code was " + error.code);
+}
+
+function getUserMedia() {
+  navigator.webkitGetUserMedia("video,audio", gotStream, gotStreamFailed);
+}
+
+// Call control
+
+function createPeerConnection() {
+  pc = new webkitDeprecatedPeerConnection("STUN stun.l.google.com:19302",
+      onSignalingMessage);
+  pc.onaddstream = onAddStream;
+  pc.onremovestream = onRemoveStream;
+  pc.addStream(localStream);
+}
+
+function doCall() {
+	createPeerConnection();
+}
+
+function closeCall() {
+  trace("Stopping showing remote stream");
+  document.getElementById("remoteView").src = "";
+  pc.close();
+  pc = null;
+}
+
+// PeerConnection callbacks
+
+function onAddStream(e) {
+  var stream = e.stream;
+  var url = webkitURL.createObjectURL(stream);
+  document.getElementById("remoteView").src = url;
+  trace("Started showing remote stream. url = " + url);
+}
+
+function onRemoveStream(e) {
+  document.getElementById("remoteView").src = "";
+  trace("Stopped showing remote stream");
+}
+
+function onSignalingMessage(sdp) {
+  trace(sdp);
+}
+
+function receiveSignallingMessage(sdp) {
+	pc.processSignalingMessage(sdp);
+}
+
+// Additional Functions
+
+function onRemoteSDP() {
+	sdp = document.getElementById("remoteSDP").value;
+	receiveSignallingMessage(sdp);
+	document.getElementById("remoteSDP").value = "";
+}
+
+// Window event handling
+
+window.onload = function() {
+  getUserMedia();
+}
+
+</script>
+</head>
+
+<body>
+<h1>El que llama</h1>
+
+<table border="0">
+<tr>
+ <td>Local Preview</td>
+ <td>Remote Video</td>
+</tr>
+<tr>
+ <td>
+  <video width="160" height="120" id="localView" autoplay="autoplay"></video>
+ </td>
+ <td>
+  <video width="160" height="120" id="remoteView" autoplay="autoplay"></video>
+ </td>
+</tr>
+</table>
+<br>
+<button id="createPeerConnection" onclick="doCall();">Init Call</button><br><br>
+<textarea id="remoteSDP" rows="10" cols="70" wrap="on"></textarea><br/>
+<button onclick="onRemoteSDP();">Receive SDP</button><br>
+<pre id="debug"></pre>
+
+</body>
+
+</html>
+
